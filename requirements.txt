@@ -1,0 +1,9 @@
+pandas
+chardet
+openpyxl
+pyarrow
+duckdb
+pymongo
+sqlalchemy
+psycopg2-binary
+pymysql

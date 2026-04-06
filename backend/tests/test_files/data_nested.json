@@ -1,0 +1,5 @@
+[
+    {"nom": "Alice", "age": 30, "adresse": {"ville": "Paris", "cp": "75000"}, "contact": {"email": "alice@mail.com", "tel": "0601020304"}},
+    {"nom": "Bob", "age": 25, "adresse": {"ville": "Lyon", "cp": "69000"}, "contact": {"email": "bob@mail.com", "tel": "0605060708"}},
+    {"nom": "Charlie", "age": 35, "adresse": {"ville": "Marseille", "cp": "13000"}, "contact": {"email": "charlie@mail.com", "tel": "0609101112"}}
+]
