@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "lobster"
-version = "0.1.0a1"
+version = "0.3.0a1"
 description = "Data Transforming Made Easy — an open source ETL tool for researchers"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -30,6 +30,7 @@ dependencies = [
     "sqlalchemy",
     "psycopg2-binary",
     "pymysql",
+    "click",
 ]
 
 [project.optional-dependencies]
@@ -38,7 +39,7 @@ dev = [
 ]
 
 [project.scripts]
-lobster = "backend.src.main:main"
+lobster = "backend.src.cli:cli"
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
