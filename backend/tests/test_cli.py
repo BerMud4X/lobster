@@ -1,6 +1,8 @@
 import pytest
 import sys
+import pandas as pd
 from pathlib import Path
+from unittest.mock import patch
 from click.testing import CliRunner
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -66,4 +68,73 @@ def test_replay_help():
 def test_version():
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "0.2.0-alpha" in result.output
+    assert "0.3.0-alpha" in result.output
+
+
+# --- analyze ---
+
+FAKE_DF = pd.DataFrame([{
+    "patient_id": "P001",
+    "session": "Seance 1",
+    "exercise_num": 1,
+    "exercise_name": "Knee locking",
+    "code": "KnL",
+    "code_base": "Functional",
+    "muscles": "Gluteus maximus",
+    "assistance": "parallel bars",
+    "repetitions": None,
+    "time": None,
+}])
+
+def test_analyze_help():
+    result = runner.invoke(cli, ["analyze", "--help"])
+    assert result.exit_code == 0
+    assert "--input" in result.output
+    assert "--provider" in result.output
+    assert "--output" in result.output
+
+@patch("cli.analyze_file", return_value=FAKE_DF)
+def test_analyze_runs(mock_analyze):
+    result = runner.invoke(cli, [
+        "analyze", "--input", str(TEST_FILES / "test_patient.xlsx"),
+        "--provider", "Mistral", "--model", "open-mistral-7b"
+    ])
+    assert result.exit_code == 0
+    assert "Knee locking" in result.output
+    mock_analyze.assert_called_once()
+
+@patch("cli.analyze_file", return_value=FAKE_DF)
+def test_analyze_saves_output(mock_analyze, tmp_path):
+    out = tmp_path / "result.csv"
+    result = runner.invoke(cli, [
+        "analyze", "--input", str(TEST_FILES / "test_patient.xlsx"),
+        "--provider", "Mistral", "--model", "open-mistral-7b",
+        "--output", str(out)
+    ])
+    assert result.exit_code == 0
+    assert out.exists()
+    assert "Saved to" in result.output
+
+@patch("cli.analyze_file", return_value=pd.DataFrame())
+def test_analyze_empty_result(mock_analyze):
+    result = runner.invoke(cli, [
+        "analyze", "--input", str(TEST_FILES / "test_patient.xlsx"),
+        "--provider", "Mistral", "--model", "open-mistral-7b"
+    ])
+    assert result.exit_code == 0
+    assert "No exercises extracted" in result.output
+
+@patch("cli.analyze_file", side_effect=ValueError("bad file"))
+def test_analyze_error(mock_analyze):
+    result = runner.invoke(cli, [
+        "analyze", "--input", "nonexistent.xlsx",
+        "--provider", "Mistral", "--model", "open-mistral-7b"
+    ])
+    assert "ERROR" in result.output
+
+def test_analyze_invalid_provider():
+    result = runner.invoke(cli, [
+        "analyze", "--input", str(TEST_FILES / "test_patient.xlsx"),
+        "--provider", "InvalidProvider"
+    ])
+    assert result.exit_code != 0
