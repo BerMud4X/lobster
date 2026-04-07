@@ -7,10 +7,10 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT"/></a>
-  <img src="https://img.shields.io/badge/version-0.2.0--alpha-orange.svg" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-0.3.0--alpha-orange.svg" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.12%2B-blue.svg" alt="Python 3.12+"/>
   <img src="https://img.shields.io/badge/status-alpha-red.svg" alt="Status"/>
-  <img src="https://img.shields.io/badge/tests-46%20passed-brightgreen.svg" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-86%20passed-brightgreen.svg" alt="Tests"/>
   <img src="https://img.shields.io/badge/docker-ready-blue.svg" alt="Docker"/>
 </p>
 
@@ -65,9 +65,18 @@ It guides you step by step through the full data pipeline — from raw file dete
 - `lobster export` — read and export directly
 - `lobster replay` — replay a saved pipeline automatically
 
+### AI Exercise Analyzer
+- Extracts structured exercise data from free-text clinical notes
+- Multi-provider support: **Mistral AI** (EU, RGPD compliant ✅) and **Anthropic Claude** (US ⚠️)
+- BYOK model — bring your own API key, zero data transit through LOBSTER servers
+- Interactive RGPD notice displayed at provider selection
+- Detects patient ID, session, exercise name, muscles, assistance, reps, duration
+- Validates muscles against a reference list (Latin anatomical names)
+- 3 automatic retries on malformed AI response
+
 ### Infrastructure
 - Structured logging to `logs/lobster.log`
-- 46 unit tests (pytest)
+- 86 unit tests (pytest)
 - Docker ready — includes MongoDB and PostgreSQL services
 
 ---
@@ -84,20 +93,28 @@ LOBSTER/
 ├── pyproject.toml
 └── backend/
     ├── src/
-    │   ├── main.py         # Entry point (interactive)
-    │   ├── cli.py          # CLI entry point (click)
-    │   ├── detector.py     # File type detection & verification
-    │   ├── reader.py       # File reading (CSV, Excel, JSON)
-    │   ├── cleaner.py      # Interactive cleaning pipeline
-    │   ├── exporter.py     # Multi-format export
-    │   ├── pipeline.py     # Pipeline save & replay
-    │   ├── reporter.py     # Cleaning report generation
-    │   └── logger.py       # Logging configuration
+    │   ├── main.py                # Entry point (interactive)
+    │   ├── cli.py                 # CLI entry point (click)
+    │   ├── detector.py            # File type detection & verification
+    │   ├── reader.py              # File reading (CSV, Excel, JSON)
+    │   ├── cleaner.py             # Interactive cleaning pipeline
+    │   ├── exporter.py            # Multi-format export
+    │   ├── pipeline.py            # Pipeline save & replay
+    │   ├── reporter.py            # Cleaning report generation
+    │   ├── analyzer.py            # Clinical exercise analysis orchestrator
+    │   ├── exercise_extractor.py  # AI extraction (Mistral + Anthropic)
+    │   ├── reference_loader.py    # Exercise & muscle reference loader
+    │   └── logger.py              # Logging configuration
+    ├── references/
+    │   └── exercises_reference.xlsx  # Exercise & muscle reference data
     └── tests/
         ├── test_detector.py
         ├── test_cleaner.py
         ├── test_pipeline.py
         ├── test_reporter.py
+        ├── test_cli.py
+        ├── test_analyzer.py
+        ├── test_exercise_extractor.py
         └── test_files/
 ```
 
@@ -143,6 +160,19 @@ python cli.py replay --pipeline output/pipeline.json
 python cli.py --help
 ```
 
+### API Keys (AI Analyzer)
+
+Create a `.env` file at the project root:
+
+```env
+MISTRAL_API_KEY=your_mistral_key_here
+ANTHROPIC_API_KEY=your_anthropic_key_here
+```
+
+You only need to fill in the key for the provider you want to use.
+- Mistral API key: [console.mistral.ai](https://console.mistral.ai)
+- Anthropic API key: [console.anthropic.com](https://console.anthropic.com)
+
 ### Option 2 — Docker
 
 ```bash
@@ -174,11 +204,17 @@ python -m pytest -v
 - [x] Pipeline save & replay
 - [x] Cleaning report (text, JSON, HTML)
 - [x] Logging
-- [x] 46 unit tests
 - [x] Docker configuration
 
-### v0.2.0 — Planned
+### v0.3.0-alpha ✅
 - [x] CLI with click
+- [x] AI exercise analyzer (clinical free-text → structured data)
+- [x] Multi-provider AI: Mistral (EU/RGPD) + Anthropic Claude
+- [x] BYOK model (bring your own API key)
+- [x] RGPD notice at provider selection
+- [x] 86 unit tests
+
+### v0.4.0 — Planned
 - [ ] Desktop GUI
 - [ ] Pipeline scheduling
 - [ ] Cloud export (AWS S3, Azure Blob)
