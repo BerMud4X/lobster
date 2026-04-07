@@ -8,3 +8,6 @@ sqlalchemy
 psycopg2-binary
 pymysql
 click
+mistralai
+anthropic
+python-dotenv
