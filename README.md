@@ -8,8 +8,10 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT"/></a>
   <img src="https://img.shields.io/badge/version-0.1.0--alpha-orange.svg" alt="Version"/>
-  <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.12+"/>
+  <img src="https://img.shields.io/badge/python-3.12%2B-blue.svg" alt="Python 3.12+"/>
   <img src="https://img.shields.io/badge/status-alpha-red.svg" alt="Status"/>
+  <img src="https://img.shields.io/badge/tests-46%20passed-brightgreen.svg" alt="Tests"/>
+  <img src="https://img.shields.io/badge/docker-ready-blue.svg" alt="Docker"/>
 </p>
 
 ---
@@ -24,14 +26,41 @@ It guides you step by step through the full data pipeline — from raw file dete
 
 ## Features
 
-- **Auto file detection** — CSV, Excel (.xlsx, .xls), JSON
-- **Content verification** — magic bytes check to ensure file integrity
-- **Interactive cleaning** — replace zeros, handle missing values, remove duplicates, fix types, trim whitespace, standardize case
-- **Nested JSON support** — automatic flattening of complex structures
-- **Multi-sheet Excel** — select and merge sheets interactively
-- **Reproducible pipelines** — save and replay cleaning steps automatically
-- **Cleaning report** — before/after comparison in text, JSON or HTML
-- **Multi-destination export** — CSV, Parquet (Data Lake), DuckDB (Data Warehouse), SQL (PostgreSQL / MySQL / SQLite), MongoDB
+### Detection
+- Auto file type detection — CSV, Excel (.xlsx, .xls), JSON
+- Magic bytes verification — ensures file content matches its extension
+- Encoding auto-detection with manual fallback
+
+### Reading
+- CSV with automatic encoding detection
+- Excel with multi-sheet selection and optional merge
+- JSON with automatic nested structure flattening
+- Double-entry table detection (index column)
+
+### Cleaning (Interactive)
+- Replace zeros with NaN
+- Handle missing values (drop rows/cols, fill with mean/median/mode/custom)
+- Remove duplicates
+- Fix column types (int, float, str, datetime)
+- Trim whitespace
+- Standardize case (lowercase / uppercase / titlecase)
+
+### Pipeline & Reproducibility
+- Save pipeline steps to JSON
+- Replay pipeline automatically on new data — no re-configuration needed
+- Full before/after cleaning report (text, JSON or HTML)
+
+### Export
+- CSV (sorted, UTF-8)
+- Parquet (Data Lake)
+- DuckDB (Data Warehouse)
+- SQL — PostgreSQL / MySQL / SQLite
+- MongoDB
+
+### Infrastructure
+- Structured logging to `logs/lobster.log`
+- 46 unit tests (pytest)
+- Docker ready — includes MongoDB and PostgreSQL services
 
 ---
 
@@ -39,52 +68,58 @@ It guides you step by step through the full data pipeline — from raw file dete
 
 ```
 LOBSTER/
+├── Dockerfile
+├── docker-compose.yml
 ├── LICENSE
 ├── README.md
 ├── requirements.txt
-├── backend/
-│   ├── src/
-│   │   ├── main.py         # Entry point
-│   │   ├── detector.py     # File type detection
-│   │   ├── reader.py       # File reading
-│   │   ├── cleaner.py      # Interactive cleaning
-│   │   ├── exporter.py     # Multi-format export
-│   │   ├── pipeline.py     # Pipeline save & replay
-│   │   ├── reporter.py     # Cleaning report generation
-│   │   └── logger.py       # Logging configuration
-│   └── tests/
-│       ├── test_detector.py
-│       ├── test_cleaner.py
-│       ├── test_pipeline.py
-│       ├── test_reporter.py
-│       └── test_files/
+├── pyproject.toml
+└── backend/
+    ├── src/
+    │   ├── main.py         # Entry point
+    │   ├── detector.py     # File type detection & verification
+    │   ├── reader.py       # File reading (CSV, Excel, JSON)
+    │   ├── cleaner.py      # Interactive cleaning pipeline
+    │   ├── exporter.py     # Multi-format export
+    │   ├── pipeline.py     # Pipeline save & replay
+    │   ├── reporter.py     # Cleaning report generation
+    │   └── logger.py       # Logging configuration
+    └── tests/
+        ├── test_detector.py
+        ├── test_cleaner.py
+        ├── test_pipeline.py
+        ├── test_reporter.py
+        └── test_files/
 ```
 
 ---
 
 ## Getting Started
 
-### Prerequisites
+### Option 1 — Local
 
-- Python 3.10+
-- pip
-
-### Installation
+**Prerequisites:** Python 3.12+, pip
 
 ```bash
-git clone https://github.com/your-username/lobster.git
+git clone https://github.com/BerMud4X/lobster.git
 cd lobster
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-### Run
-
-```bash
 cd backend/src
 python main.py
 ```
+
+### Option 2 — Docker
+
+```bash
+git clone https://github.com/BerMud4X/lobster.git
+cd lobster
+docker compose up --build
+docker compose run lobster
+```
+
+> MongoDB and PostgreSQL are automatically available as export targets when using Docker.
 
 ---
 
@@ -99,11 +134,26 @@ python -m pytest -v
 
 ## Roadmap
 
-- [ ] Desktop GUI (v0.2.0)
+### v0.1.0-alpha ✅
+- [x] File detection (CSV, Excel, JSON)
+- [x] Interactive cleaning pipeline
+- [x] Multi-format export (CSV, Parquet, DuckDB, SQL, MongoDB)
+- [x] Pipeline save & replay
+- [x] Cleaning report (text, JSON, HTML)
+- [x] Logging
+- [x] 46 unit tests
+- [x] Docker configuration
+
+### v0.2.0 — Planned
+- [ ] Desktop GUI
+- [ ] CLI with argparse/click
 - [ ] Pipeline scheduling
+- [ ] Cloud export (AWS S3, Azure Blob)
+
+### v1.0.0 — Future
 - [ ] SaaS version
 - [ ] Plugin system for custom transformations
-- [ ] Cloud export (AWS S3, Azure Blob)
+- [ ] Multi-language support
 
 ---
 
