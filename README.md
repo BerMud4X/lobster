@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT"/></a>
-  <img src="https://img.shields.io/badge/version-0.1.0--alpha-orange.svg" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-0.2.0--alpha-orange.svg" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.12%2B-blue.svg" alt="Python 3.12+"/>
   <img src="https://img.shields.io/badge/status-alpha-red.svg" alt="Status"/>
   <img src="https://img.shields.io/badge/tests-46%20passed-brightgreen.svg" alt="Tests"/>
@@ -57,6 +57,14 @@ It guides you step by step through the full data pipeline — from raw file dete
 - SQL — PostgreSQL / MySQL / SQLite
 - MongoDB
 
+### CLI
+- Full command-line interface powered by `click`
+- `lobster run` — full pipeline interactively
+- `lobster detect` — detect file type only
+- `lobster clean` — read and clean interactively
+- `lobster export` — read and export directly
+- `lobster replay` — replay a saved pipeline automatically
+
 ### Infrastructure
 - Structured logging to `logs/lobster.log`
 - 46 unit tests (pytest)
@@ -76,7 +84,8 @@ LOBSTER/
 ├── pyproject.toml
 └── backend/
     ├── src/
-    │   ├── main.py         # Entry point
+    │   ├── main.py         # Entry point (interactive)
+    │   ├── cli.py          # CLI entry point (click)
     │   ├── detector.py     # File type detection & verification
     │   ├── reader.py       # File reading (CSV, Excel, JSON)
     │   ├── cleaner.py      # Interactive cleaning pipeline
@@ -108,6 +117,30 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cd backend/src
 python main.py
+```
+
+### CLI Usage
+
+```bash
+cd backend/src
+
+# Run the full pipeline interactively
+python cli.py run --input path/to/file.csv
+
+# Detect file type only
+python cli.py detect --input path/to/file.csv
+
+# Read and clean interactively, save pipeline and report
+python cli.py clean --input path/to/file.csv --save-pipeline output/pipeline.json --report output/report
+
+# Export directly to a format
+python cli.py export --input path/to/file.csv --format csv
+
+# Replay a saved pipeline automatically
+python cli.py replay --pipeline output/pipeline.json
+
+# Show all commands
+python cli.py --help
 ```
 
 ### Option 2 — Docker
@@ -145,8 +178,8 @@ python -m pytest -v
 - [x] Docker configuration
 
 ### v0.2.0 — Planned
+- [x] CLI with click
 - [ ] Desktop GUI
-- [ ] CLI with argparse/click
 - [ ] Pipeline scheduling
 - [ ] Cloud export (AWS S3, Azure Blob)
 
