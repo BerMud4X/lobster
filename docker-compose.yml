@@ -1,0 +1,45 @@
+services:
+
+  lobster:
+    build: .
+    container_name: lobster_etl
+    volumes:
+      - ./data:/app/data         # input files
+      - ./output:/app/output     # exported files
+      - ./logs:/app/logs         # logs
+    stdin_open: true             # keep stdin open for interactive input()
+    tty: true                    # allocate a pseudo-TTY
+    depends_on:
+      - mongodb
+      - postgres
+    environment:
+      - MONGO_URI=mongodb://mongo:27017
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=lobster
+      - POSTGRES_PASSWORD=lobster
+      - POSTGRES_DB=lobster_db
+
+  mongodb:
+    image: mongo:7
+    container_name: lobster_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  postgres:
+    image: postgres:16
+    container_name: lobster_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: lobster
+      POSTGRES_PASSWORD: lobster
+      POSTGRES_DB: lobster_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  mongo_data:
+  postgres_data:

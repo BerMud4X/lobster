@@ -1,0 +1,12 @@
+.venv/
+.git/
+.github/
+__pycache__/
+*.py[cod]
+*.pyo
+logs/
+output/
+.env
+.env.*
+*.duckdb
+.pytest_cache/
