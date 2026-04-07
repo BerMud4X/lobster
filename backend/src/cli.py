@@ -5,11 +5,12 @@ from exporter import export
 from detector import get_file_type
 from pipeline import Pipeline
 from reporter import generate_report, save_report
+from analyzer import analyze_file
 from logger import logger
 
 
 @click.group()
-@click.version_option(version="0.2.0-alpha", prog_name="LOBSTER")
+@click.version_option(version="0.3.0-alpha", prog_name="LOBSTER")
 def cli():
     """LOBSTER — Data Transforming Made Easy.
 
@@ -150,6 +151,34 @@ def replay(pipeline, report):
     except Exception as e:
         click.echo(f"ERROR: {e}", err=True)
         logger.error(f"CLI replay error: {e}")
+
+
+@cli.command()
+@click.option("--input", "-i", required=True, help="Path to the clinical file (CSV or Excel).")
+@click.option("--output", "-o", default=None, help="Save extracted exercises to this CSV file.")
+@click.option("--provider", "-p",
+              type=click.Choice(["Mistral", "Anthropic"], case_sensitive=True),
+              default=None, help="AI provider to use (default: interactive selection).")
+@click.option("--model", "-m", default=None, help="Model ID to use (skips interactive selection).")
+def analyze(input, output, provider, model):
+    """Extract structured exercise data from a clinical file using AI."""
+    try:
+        df = analyze_file(input, model=model, provider=provider)
+
+        if df.empty:
+            click.echo("No exercises extracted.")
+            return
+
+        click.echo(f"\n{df.to_string(index=False)}")
+
+        if output:
+            df.to_csv(output, index=False)
+            click.echo(f"\nSaved to: {output}")
+            logger.info(f"CLI analyze: saved {len(df)} records to {output}")
+
+    except Exception as e:
+        click.echo(f"ERROR: {e}", err=True)
+        logger.error(f"CLI analyze error: {e}")
 
 
 if __name__ == "__main__":
