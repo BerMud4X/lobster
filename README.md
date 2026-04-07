@@ -8,7 +8,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT"/></a>
   <img src="https://img.shields.io/badge/version-0.1.0--alpha-orange.svg" alt="Version"/>
-  <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"/>
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.12+"/>
   <img src="https://img.shields.io/badge/status-alpha-red.svg" alt="Status"/>
 </p>
 
