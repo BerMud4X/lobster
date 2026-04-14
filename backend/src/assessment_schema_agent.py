@@ -108,6 +108,42 @@ def _parse_response(raw: str) -> dict:
     return json.loads(raw)
 
 
+def _validate_extraction(parsed) -> dict:
+    """
+    Defensive validation of Agent 6's output. Guarantees downstream code
+    always receives a well-formed dict, even if the AI returns garbage.
+    """
+    if not isinstance(parsed, dict):
+        logger.warning(f"[SchemaAgent] response is not a dict ({type(parsed).__name__}) — replacing with empty.")
+        return {"test_name": "unknown", "test_type": "unknown", "scale": None, "data": []}
+
+    test_name = parsed.get("test_name")
+    if not isinstance(test_name, str) or not test_name.strip():
+        test_name = "unknown"
+
+    test_type = parsed.get("test_type")
+    if not isinstance(test_type, str) or not test_type.strip():
+        test_type = "unknown"
+
+    scale = parsed.get("scale")
+    if scale is not None and not isinstance(scale, (str, int, float)):
+        scale = None
+
+    data = parsed.get("data")
+    if not isinstance(data, list):
+        logger.warning(f"[SchemaAgent] 'data' is not a list ({type(data).__name__}) — discarding.")
+        data = []
+    else:
+        data = [d for d in data if isinstance(d, dict)]
+
+    return {
+        "test_name": str(test_name).strip(),
+        "test_type": str(test_type).strip(),
+        "scale": scale,
+        "data": data,
+    }
+
+
 def _normalize_record(rec: dict) -> dict:
     """Normalizes one extracted record (timepoint case, missing detection)."""
     val = rec.get("value")
@@ -154,7 +190,7 @@ def _call_ai(prompt: str, model: str, provider: str) -> dict:
                     messages=[{"role": "user", "content": prompt}]
                 )
                 raw = response.content[0].text.strip()
-                parsed = _parse_response(raw)
+                parsed = _validate_extraction(_parse_response(raw))
                 audit_logger.log_call("schema_detector", "Anthropic", model, prompt, raw, parsed=parsed)
                 return parsed
             except json.JSONDecodeError as e:
@@ -172,7 +208,7 @@ def _call_ai(prompt: str, model: str, provider: str) -> dict:
                     messages=[{"role": "user", "content": prompt}]
                 )
                 raw = response.choices[0].message.content.strip()
-                parsed = _parse_response(raw)
+                parsed = _validate_extraction(_parse_response(raw))
                 audit_logger.log_call("schema_detector", "Mistral", model, prompt, raw, parsed=parsed)
                 return parsed
             except json.JSONDecodeError as e:

@@ -31,7 +31,13 @@ def main():
 
     # Multi-sheet without merge → process each sheet independently
     if isinstance(result, dict):
-        for sheet_name, df in result.items():
+        # Skip metadata sheets (e.g. 'protocole' is for the AI analyzer, not data to clean)
+        data_sheets = {name: df for name, df in result.items() if name.strip().lower() != "protocole"}
+        skipped = set(result.keys()) - set(data_sheets.keys())
+        if skipped:
+            print(f"\n[Info] Skipping metadata sheet(s): {', '.join(sorted(skipped))}")
+
+        for sheet_name, df in data_sheets.items():
             print(f"\n--- Sheet: {sheet_name} | Shape: {df.shape} ---")
             df_before = df.copy()
             sheet_pipeline = Pipeline()

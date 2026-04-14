@@ -7,10 +7,10 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT"/></a>
-  <img src="https://img.shields.io/badge/version-0.4.0-alpha-orange.svg" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-0.4.1--alpha-orange.svg" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.12%2B-blue.svg" alt="Python 3.12+"/>
   <img src="https://img.shields.io/badge/status-alpha-red.svg" alt="Status"/>
-  <img src="https://img.shields.io/badge/tests-234%20passed-brightgreen.svg" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-249%20passed-brightgreen.svg" alt="Tests"/>
   <img src="https://img.shields.io/badge/docker-ready-blue.svg" alt="Docker"/>
 </p>
 
@@ -27,17 +27,20 @@ It guides you step by step through the full data pipeline — from raw file dete
 ## Features
 
 ### Detection
+
 - Auto file type detection — CSV, Excel (.xlsx, .xls), JSON
 - Magic bytes verification — ensures file content matches its extension
 - Encoding auto-detection with manual fallback
 
 ### Reading
+
 - CSV with automatic encoding detection
 - Excel with multi-sheet selection and optional merge
 - JSON with automatic nested structure flattening
 - Double-entry table detection (index column)
 
 ### Cleaning (Interactive)
+
 - Replace zeros with NaN
 - Handle missing values (drop rows/cols, fill with mean/median/mode/custom)
 - Remove duplicates
@@ -46,11 +49,13 @@ It guides you step by step through the full data pipeline — from raw file dete
 - Standardize case (lowercase / uppercase / titlecase)
 
 ### Pipeline & Reproducibility
+
 - Save pipeline steps to JSON
 - Replay pipeline automatically on new data — no re-configuration needed
 - Full before/after cleaning report (text, JSON or HTML)
 
 ### Export
+
 - CSV (sorted, UTF-8)
 - Parquet (Data Lake)
 - DuckDB (Data Warehouse)
@@ -58,6 +63,7 @@ It guides you step by step through the full data pipeline — from raw file dete
 - MongoDB
 
 ### CLI
+
 - Full command-line interface powered by `click`
 - `lobster run` — full pipeline interactively
 - `lobster detect` — detect file type only
@@ -66,6 +72,7 @@ It guides you step by step through the full data pipeline — from raw file dete
 - `lobster replay` — replay a saved pipeline automatically
 
 ### AI Exercise Analyzer
+
 - Extracts structured exercise data from free-text clinical notes using a **7-agent pipeline**
 - **Agent 1 — Extractor:** identifies exercises, muscles, objectives, series, reps, duration, assistance
 - **Agent 2 — Reviewer:** clinically validates Agent 1's output, auto-corrects or retries if rejected (max 2x)
@@ -150,7 +157,7 @@ The clinical report mode auto-detects the language of the input notes and writes
 ### Infrastructure
 
 - Structured logging to `logs/lobster.log`
-- 234 unit tests (pytest)
+- 249 unit tests (pytest)
 - Docker ready — includes MongoDB and PostgreSQL services
 
 ---
@@ -320,6 +327,7 @@ ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
 You only need to fill in the key for the provider you want to use.
+
 - Mistral API key: [console.mistral.ai](https://console.mistral.ai)
 - Anthropic API key: [console.anthropic.com](https://console.anthropic.com)
 
@@ -348,6 +356,7 @@ python -m pytest -v
 ## Roadmap
 
 ### v0.1.0-alpha ✅
+
 - [x] File detection (CSV, Excel, JSON)
 - [x] Interactive cleaning pipeline
 - [x] Multi-format export (CSV, Parquet, DuckDB, SQL, MongoDB)
@@ -357,6 +366,7 @@ python -m pytest -v
 - [x] Docker configuration
 
 ### v0.3.0-alpha ✅
+
 - [x] CLI with click
 - [x] AI exercise analyzer (clinical free-text → structured data)
 - [x] Multi-provider AI: Mistral (EU/RGPD) + Anthropic Claude
@@ -385,7 +395,14 @@ python -m pytest -v
 - [x] Pre-flight API cost estimation with confirmation prompt above $1
 - [x] Audit trail / provenance log (JSONL) — every AI call recorded for reproducibility
 - [x] **Quantitative assessments (Phase 1)** — Agent 6 schema detector + deterministic stats engine + Agent 7 stats writer + auto figures (boxplot, change, forest plot)
-- [x] 234 unit tests
+- [x] 249 unit tests
+
+### v0.4.1-alpha ✅
+
+- [x] Hotfix: `main.py` ETL flow skips the `protocole` metadata sheet instead of treating it as data
+- [x] Hotfix: defensive validation of Agent 6 output (malformed AI responses no longer crash the loader)
+- [x] Hotfix: `pyproject.toml` updated with all v0.4 dependencies (scipy, statsmodels, matplotlib, langdetect, python-docx, fpdf2, mistralai, anthropic, python-dotenv)
+- [x] README markdown lint warnings cleaned (blanks around headings and lists)
 
 ### v0.5.0 — Planned
 
@@ -396,6 +413,7 @@ python -m pytest -v
 - [ ] Real-world dataset validation (50+ patients, AI vs human agreement metrics)
 
 ### v1.0.0 — Future
+
 - [ ] SaaS version
 - [ ] Plugin system for custom transformations
 - [ ] Multi-language support
