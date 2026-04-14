@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "lobster"
-version = "0.3.0a1"
+version = "0.4.1a1"
 description = "Data Transforming Made Easy — an open source ETL tool for researchers"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -21,16 +21,32 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Information Analysis",
 ]
 dependencies = [
+    # Core ETL
     "pandas",
     "chardet",
     "openpyxl",
     "pyarrow",
+    # Export targets
     "duckdb",
     "pymongo",
     "sqlalchemy",
     "psycopg2-binary",
     "pymysql",
+    # CLI
     "click",
+    # AI providers
+    "mistralai",
+    "anthropic",
+    "python-dotenv",
+    # Report generation (figures + .pdf/.docx export)
+    "matplotlib",
+    "python-docx",
+    "fpdf2",
+    # Clinical report language detection
+    "langdetect",
+    # Deterministic statistical engine (assessments)
+    "scipy",
+    "statsmodels",
 ]
 
 [project.optional-dependencies]
