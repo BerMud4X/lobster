@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from logger import logger
-from reference_loader import load_exercises, get_muscles_latin_list, validate_code_base
+from reference_loader import load_exercises, get_muscles_latin_list, get_objectives_list, validate_code_base, validate_objective_code, load_protocol
+import audit_logger
 
 # Load API keys from .env
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
@@ -77,7 +78,7 @@ def select_provider_and_model() -> tuple[str, str]:
     return provider_name, model_id
 
 
-def _build_prompt(text: str, exercises_ref: list[dict], muscles_ref: list[str]) -> str:
+def _build_prompt(text: str, exercises_ref: list[dict], muscles_ref: list[str], objectives_ref: list[dict], protocol: dict = None) -> str:
     """Builds the prompt for exercise extraction."""
     exercises_str = "\n".join(
         f"- {e['name']} | code: {e['code']} | code_base: {e['code_base']}"
@@ -86,7 +87,25 @@ def _build_prompt(text: str, exercises_ref: list[dict], muscles_ref: list[str]) 
 
     muscles_str = "\n".join(f"- {m}" for m in muscles_ref)
 
+    objectives_str = "\n".join(
+        f"- {o['code']}: {o['label']}"
+        for o in objectives_ref
+    ) if objectives_ref else "No objectives available."
+
+    protocol_block = ""
+    if protocol:
+        sec = ", ".join(protocol.get("obj_secondaires", [])) or "none"
+        protocol_block = f"""
+RESEARCH PROTOCOL CONTEXT:
+- Description: {protocol.get("description", "N/A")}
+- Primary objective: {protocol.get("obj_principal", "unknown")}
+- Secondary objectives: {sec}
+
+Use the protocol's primary objective as the default objective for each exercise unless the exercise clearly belongs to a secondary objective. Do NOT use objectives outside of the primary and secondary ones listed above.
+"""
+
     return f"""You are a clinical physiotherapy expert. Analyze the following exercise description written by a therapist and extract structured information.
+{protocol_block}
 
 EXERCISE DESCRIPTION:
 "{text}"
@@ -99,6 +118,9 @@ MUSCLES — you MUST only use muscles from this list:
 
 VALID CODE_BASE VALUES: Push, Pull, Transfer, Balance, Stretch, Cardio, Functional, unknown
 
+THERAPEUTIC OBJECTIVES — assign the most relevant code(s) from this list, or "unknown":
+{objectives_str}
+
 INSTRUCTIONS:
 - Extract all exercises mentioned in the description.
 - For each exercise return a JSON array with these exact fields:
@@ -107,13 +129,15 @@ INSTRUCTIONS:
   - code_base: one of the valid values above only, or "unknown"
   - muscles: list of primary muscles — ONLY from the provided muscle list above
   - assistance: description of any assistance mentioned, or null
-  - repetitions: number if mentioned, otherwise null
+  - series: number of sets if mentioned, otherwise null
+  - repetitions: number of repetitions per set if mentioned, otherwise null
   - time: duration in seconds if mentioned, otherwise null
+  - objective: the most relevant therapeutic objective code from the list above, or "unknown"
 
 IMPORTANT: Return ONLY a valid JSON array. No explanation. No markdown. No code blocks.
 
 Example:
-[{{"exercise_name": "Knee locking", "code": "KnL", "code_base": "Push", "muscles": ["Quadriceps femoris", "Vastus medialis"], "assistance": "parallel bars", "repetitions": null, "time": null}}]"""
+[{{"exercise_name": "Knee locking", "code": "KnL", "code_base": "Push", "muscles": ["Quadriceps femoris", "Vastus medialis"], "assistance": "parallel bars", "series": 3, "repetitions": 10, "time": null, "objective": "STR"}}]"""
 
 
 def _parse_response(raw: str, muscles_ref: list[str]) -> list[dict]:
@@ -138,6 +162,8 @@ def _parse_response(raw: str, muscles_ref: list[str]) -> list[dict]:
     # Validate and normalize
     for ex in exercises:
         ex["code_base"] = validate_code_base(ex.get("code_base", ""))
+        ex["objective"] = validate_objective_code(ex.get("objective", ""))
+        ex["series"] = ex.get("series") or None
         ex["repetitions"] = ex.get("repetitions") or None
         ex["time"] = ex.get("time") or None
         ex["assistance"] = ex.get("assistance") or None
@@ -169,6 +195,7 @@ def _call_mistral(model: str, prompt: str, muscles_ref: list[str]) -> list[dict]
             raw = response.choices[0].message.content.strip()
             logger.info(f"[Mistral/{model}] raw response: {raw[:200]}")
             exercises = _parse_response(raw, muscles_ref)
+            audit_logger.log_call("extractor", "Mistral", model, prompt, raw, parsed=exercises)
             logger.info(f"[Mistral/{model}] extracted {len(exercises)} exercises.")
             return exercises
         except json.JSONDecodeError as e:
@@ -203,6 +230,7 @@ def _call_anthropic(model: str, prompt: str, muscles_ref: list[str]) -> list[dic
             raw = response.content[0].text.strip()
             logger.info(f"[Anthropic/{model}] raw response: {raw[:200]}")
             exercises = _parse_response(raw, muscles_ref)
+            audit_logger.log_call("extractor", "Anthropic", model, prompt, raw, parsed=exercises)
             logger.info(f"[Anthropic/{model}] extracted {len(exercises)} exercises.")
             return exercises
         except json.JSONDecodeError as e:
@@ -217,20 +245,23 @@ def _fallback() -> list[dict]:
         "exercise_name": "unknown",
         "code": "UNK",
         "code_base": "unknown",
+        "objective": "unknown",
         "muscles": [],
         "assistance": None,
+        "series": None,
         "repetitions": None,
         "time": None,
     }]
 
 
-def extract_exercises(text: str, model: str = "open-mistral-7b", provider: str = "Mistral") -> list[dict]:
+def extract_exercises(text: str, model: str = "open-mistral-7b", provider: str = "Mistral", protocol: dict = None) -> list[dict]:
     """
     Extracts and standardizes exercises from free text using the selected AI provider.
     """
     exercises_ref = load_exercises()
     muscles_ref = get_muscles_latin_list()
-    prompt = _build_prompt(text, exercises_ref, muscles_ref)
+    objectives_ref = get_objectives_list()
+    prompt = _build_prompt(text, exercises_ref, muscles_ref, objectives_ref, protocol=protocol)
 
     if provider == "Anthropic":
         return _call_anthropic(model, prompt, muscles_ref)

@@ -30,24 +30,24 @@ VALID_JSON = json.dumps([{
 # --- _build_prompt ---
 
 def test_build_prompt_contains_text():
-    prompt = _build_prompt("patient did squats", [], MUSCLES_REF)
+    prompt = _build_prompt("patient did squats", [], MUSCLES_REF, [])
     assert "patient did squats" in prompt
 
 def test_build_prompt_contains_muscles():
-    prompt = _build_prompt("squats", [], MUSCLES_REF)
+    prompt = _build_prompt("squats", [], MUSCLES_REF, [])
     assert "Gluteus maximus" in prompt
 
 def test_build_prompt_no_exercises_ref():
-    prompt = _build_prompt("squats", [], MUSCLES_REF)
+    prompt = _build_prompt("squats", [], MUSCLES_REF, [])
     assert "No reference available yet" in prompt
 
 def test_build_prompt_with_exercises_ref():
     ref = [{"name": "Knee locking", "code": "KnL", "code_base": "Functional"}]
-    prompt = _build_prompt("squats", ref, MUSCLES_REF)
+    prompt = _build_prompt("squats", ref, MUSCLES_REF, [])
     assert "KnL" in prompt
 
 def test_build_prompt_contains_valid_code_base_values():
-    prompt = _build_prompt("squats", [], MUSCLES_REF)
+    prompt = _build_prompt("squats", [], MUSCLES_REF, [])
     assert "Push" in prompt
     assert "Transfer" in prompt
     assert "unknown" in prompt
