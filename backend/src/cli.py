@@ -1,5 +1,8 @@
+import builtins
 import click
 from reader import read_file
+
+input_ = builtins.input  # alias to allow monkeypatching in tests
 from cleaner import clean
 from exporter import export
 from detector import get_file_type
@@ -97,7 +100,29 @@ def run(input, save_pipeline, report):
         click.echo(f"\n=== LOBSTER ETL ===")
         click.echo(f"Reading: {input}")
 
-        df = read_file(input)
+        result = read_file(input)
+
+        # Multi-sheet without merge → process each sheet independently
+        if isinstance(result, dict):
+            for sheet_name, df in result.items():
+                click.echo(f"\n--- Sheet: {sheet_name} ---")
+                click.echo(f"Loaded: {df.shape[0]} rows x {df.shape[1]} columns")
+                pipeline = Pipeline()
+                df_before = df.copy()
+                click.echo("\n=== CLEANING ===")
+                df = clean(df, pipeline=pipeline)
+                click.echo("\n=== EXPORT ===")
+                export(df)
+                if save_pipeline:
+                    pipeline.save(save_pipeline.replace(".json", f"_{sheet_name}.json"))
+                if report:
+                    r = generate_report(df_before, df, pipeline.steps)
+                    save_report(r, f"{report}_{sheet_name}")
+            logger.info(f"CLI run: pipeline complete for {len(result)} sheets ({input})")
+            click.echo("\n=== PIPELINE COMPLETE ===")
+            return
+
+        df = result
         click.echo(f"Loaded: {df.shape[0]} rows x {df.shape[1]} columns")
         logger.info(f"CLI run: file loaded {df.shape} ({input})")
 
@@ -155,15 +180,14 @@ def replay(pipeline, report):
 
 @cli.command()
 @click.option("--input", "-i", required=True, help="Path to the clinical file (CSV or Excel).")
-@click.option("--output", "-o", default=None, help="Save extracted exercises to this CSV file.")
-@click.option("--provider", "-p",
-              type=click.Choice(["Mistral", "Anthropic"], case_sensitive=True),
-              default=None, help="AI provider to use (default: interactive selection).")
-@click.option("--model", "-m", default=None, help="Model ID to use (skips interactive selection).")
-def analyze(input, output, provider, model):
+def analyze(input):
     """Extract structured exercise data from a clinical file using AI."""
     try:
-        df = analyze_file(input, model=model, provider=provider)
+        from pathlib import Path
+        from reference_loader import load_protocol
+
+        # Step 1 — Provider & model (always interactive, RGPD compliance)
+        df, syntheses, provider, model = analyze_file(input)
 
         if df.empty:
             click.echo("No exercises extracted.")
@@ -171,10 +195,69 @@ def analyze(input, output, provider, model):
 
         click.echo(f"\n{df.to_string(index=False)}")
 
-        if output:
-            df.to_csv(output, index=False)
-            click.echo(f"\nSaved to: {output}")
-            logger.info(f"CLI analyze: saved {len(df)} records to {output}")
+        # Step 2 — Save exercises CSV?
+        save_csv = input_("Save extracted exercises to CSV? (yes/no): ").strip().lower()
+        if save_csv == "yes":
+            csv_path = input_("Output CSV path (e.g. output/exercises.csv): ").strip()
+            Path(csv_path).parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(csv_path, index=False)
+            click.echo(f"Saved to: {csv_path}")
+            logger.info(f"CLI analyze: saved {len(df)} records to {csv_path}")
+
+        # Step 3 — Generate report?
+        gen_report = input_("Generate a report? (yes/no): ").strip().lower()
+        if gen_report != "yes":
+            return
+
+        click.echo("\nReport mode:")
+        click.echo("  1 - Publication  (scientific writing assistant)")
+        click.echo("  2 - Clinical     (follow-up & observation record)")
+        mode_choice = input_("Mode (1/2): ").strip()
+        report_mode = "clinical" if mode_choice == "2" else "publication"
+
+        click.echo("\nReport format:")
+        click.echo("  1 - PDF")
+        click.echo("  2 - Word (.docx)")
+        fmt_choice = input_("Format (1/2): ").strip()
+        report_format = "docx" if fmt_choice == "2" else "pdf"
+
+        report_path_input = input_(f"Output path (without extension, e.g. output/report): ").strip()
+        report_path = str(Path(report_path_input).with_suffix(f".{report_format}"))
+
+        protocol = load_protocol(input) if input.endswith((".xlsx", ".xls")) else {}
+
+        # Optional assessments file (quantitative test data) — publication mode only
+        assessments_df = None
+        if report_mode == "publication":
+            add_assessments = input_("Add an assessments file (quantitative test results)? (yes/no): ").strip().lower()
+            if add_assessments == "yes":
+                a_path = input_("Path to the assessments .xlsx file: ").strip()
+                from assessment_loader import load_assessments
+                try:
+                    assessments_df, a_meta = load_assessments(a_path, model=model, provider=provider)
+                    click.echo(f"  → {a_meta['n_records']} records | {len(a_meta['tests_found'])} test(s) | {a_meta['n_patients']} patient(s)")
+                except Exception as ae:
+                    click.echo(f"  [Warning] Could not load assessments: {ae}", err=True)
+                    logger.warning(f"Assessments load failed: {ae}")
+
+        if report_mode == "publication":
+            from publication_agent import write_publication_report
+            write_publication_report(
+                exercises_df=df, syntheses=syntheses, protocol=protocol,
+                output_path=report_path, fmt=report_format,
+                model=model, provider=provider,
+                assessments_df=assessments_df,
+            )
+        else:
+            from clinical_writer_agent import write_clinical_report
+            from language_detector import detect_language_from_excel
+            language = detect_language_from_excel(input)
+            click.echo(f"\n[Language detected] Clinical report will be written in: {language}")
+            write_clinical_report(
+                exercises_df=df, syntheses=syntheses, protocol=protocol,
+                output_path=report_path, fmt=report_format,
+                model=model, provider=provider, language=language,
+            )
 
     except Exception as e:
         click.echo(f"ERROR: {e}", err=True)

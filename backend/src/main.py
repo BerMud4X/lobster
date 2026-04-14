@@ -23,12 +23,42 @@ def main():
     # step 1 — read
     print("\n=== STEP 1: Reading file ===")
     try:
-        df = read_file(file_path)
-        print(f"File loaded successfully. Shape: {df.shape}")
+        result = read_file(file_path)
         pipeline.record("read_file", {"file_path": file_path})
     except (ValueError, FileNotFoundError) as e:
         print(f"ERROR: {e}")
         return
+
+    # Multi-sheet without merge → process each sheet independently
+    if isinstance(result, dict):
+        for sheet_name, df in result.items():
+            print(f"\n--- Sheet: {sheet_name} | Shape: {df.shape} ---")
+            df_before = df.copy()
+            sheet_pipeline = Pipeline()
+            sheet_pipeline.record("read_file", {"file_path": file_path, "sheet": sheet_name})
+
+            print("\n=== STEP 2: Cleaning data ===")
+            df = clean(df, pipeline=sheet_pipeline, replay=(mode == 'replay'))
+
+            print("\n=== STEP 3: Exporting data ===")
+            export(df)
+
+            save_p = input("\nSave pipeline for this sheet? (yes/no): ").strip().lower()
+            if save_p == 'yes':
+                p_path = input(f"Pipeline output path for '{sheet_name}': ").strip()
+                sheet_pipeline.save(p_path)
+
+            save_r = input("\nGenerate cleaning report for this sheet? (yes/no): ").strip().lower()
+            if save_r == 'yes':
+                report = generate_report(df_before, df, sheet_pipeline.steps)
+                r_path = input("Report output path without extension: ").strip()
+                save_report(report, r_path)
+
+        print("\n=== PIPELINE COMPLETE ===")
+        return
+
+    df = result
+    print(f"File loaded successfully. Shape: {df.shape}")
 
     # snapshot before cleaning
     df_before = df.copy()

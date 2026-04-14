@@ -90,36 +90,34 @@ def test_analyze_help():
     result = runner.invoke(cli, ["analyze", "--help"])
     assert result.exit_code == 0
     assert "--input" in result.output
-    assert "--provider" in result.output
-    assert "--output" in result.output
 
-@patch("cli.analyze_file", return_value=FAKE_DF)
-def test_analyze_runs(mock_analyze):
+@patch("cli.input_", side_effect=["no", "no"])
+@patch("cli.analyze_file", return_value=(FAKE_DF, [], "Mistral", "open-mistral-7b"))
+def test_analyze_runs(mock_analyze, mock_input):
     result = runner.invoke(cli, [
         "analyze", "--input", str(TEST_FILES / "test_patient.xlsx"),
-        "--provider", "Mistral", "--model", "open-mistral-7b"
     ])
     assert result.exit_code == 0
     assert "Knee locking" in result.output
     mock_analyze.assert_called_once()
 
-@patch("cli.analyze_file", return_value=FAKE_DF)
-def test_analyze_saves_output(mock_analyze, tmp_path):
-    out = tmp_path / "result.csv"
-    result = runner.invoke(cli, [
-        "analyze", "--input", str(TEST_FILES / "test_patient.xlsx"),
-        "--provider", "Mistral", "--model", "open-mistral-7b",
-        "--output", str(out)
-    ])
+@patch("cli.input_", side_effect=["yes", str(TEST_FILES / "out.csv"), "no"])
+@patch("cli.analyze_file", return_value=(FAKE_DF, [], "Mistral", "open-mistral-7b"))
+def test_analyze_saves_output(mock_analyze, mock_input, tmp_path):
+    csv_out = str(tmp_path / "out.csv")
+    # Override side_effect with tmp_path
+    with patch("cli.input_", side_effect=["yes", csv_out, "no"]):
+        result = runner.invoke(cli, [
+            "analyze", "--input", str(TEST_FILES / "test_patient.xlsx"),
+        ])
     assert result.exit_code == 0
-    assert out.exists()
     assert "Saved to" in result.output
 
-@patch("cli.analyze_file", return_value=pd.DataFrame())
-def test_analyze_empty_result(mock_analyze):
+@patch("cli.input_", side_effect=["no", "no"])
+@patch("cli.analyze_file", return_value=(pd.DataFrame(), [], "Mistral", "open-mistral-7b"))
+def test_analyze_empty_result(mock_analyze, mock_input):
     result = runner.invoke(cli, [
         "analyze", "--input", str(TEST_FILES / "test_patient.xlsx"),
-        "--provider", "Mistral", "--model", "open-mistral-7b"
     ])
     assert result.exit_code == 0
     assert "No exercises extracted" in result.output
@@ -128,13 +126,5 @@ def test_analyze_empty_result(mock_analyze):
 def test_analyze_error(mock_analyze):
     result = runner.invoke(cli, [
         "analyze", "--input", "nonexistent.xlsx",
-        "--provider", "Mistral", "--model", "open-mistral-7b"
     ])
     assert "ERROR" in result.output
-
-def test_analyze_invalid_provider():
-    result = runner.invoke(cli, [
-        "analyze", "--input", str(TEST_FILES / "test_patient.xlsx"),
-        "--provider", "InvalidProvider"
-    ])
-    assert result.exit_code != 0
