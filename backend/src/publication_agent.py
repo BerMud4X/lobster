@@ -9,6 +9,7 @@ from report_figures import generate_all_figures
 from report_exporter import export_report
 from cohort_analyzer import compute_cohort_stats, format_cohort_summary
 import audit_logger
+import prompt_cache
 
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
@@ -100,13 +101,16 @@ def _call_ai(prompt: str, model: str, provider: str) -> dict:
         client = anthropic.Anthropic(api_key=api_key)
         for attempt in range(1, 3):
             try:
-                response = client.messages.create(
-                    model=model, max_tokens=4096,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                raw = response.content[0].text.strip()
+                def _fetch():
+                    r = client.messages.create(
+                        model=model, max_tokens=4096,
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    return r.content[0].text.strip()
+                raw, cached = prompt_cache.get_or_fetch("Anthropic", model, prompt, _fetch)
                 parsed = _parse_publication_response(raw)
-                audit_logger.log_call("publication", "Anthropic", model, prompt, raw, parsed=parsed)
+                audit_logger.log_call("publication", "Anthropic", model, prompt, raw, parsed=parsed,
+                                      metadata={"cache_hit": cached})
                 return parsed
             except json.JSONDecodeError as e:
                 logger.warning(f"[PublicationAgent/Anthropic] attempt {attempt} invalid JSON: {e}")
@@ -118,13 +122,13 @@ def _call_ai(prompt: str, model: str, provider: str) -> dict:
         client = Mistral(api_key=api_key)
         for attempt in range(1, 3):
             try:
-                response = client.chat.complete(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                raw = response.choices[0].message.content.strip()
+                def _fetch():
+                    r = client.chat.complete(model=model, messages=[{"role": "user", "content": prompt}])
+                    return r.choices[0].message.content.strip()
+                raw, cached = prompt_cache.get_or_fetch("Mistral", model, prompt, _fetch)
                 parsed = _parse_publication_response(raw)
-                audit_logger.log_call("publication", "Mistral", model, prompt, raw, parsed=parsed)
+                audit_logger.log_call("publication", "Mistral", model, prompt, raw, parsed=parsed,
+                                      metadata={"cache_hit": cached})
                 return parsed
             except json.JSONDecodeError as e:
                 logger.warning(f"[PublicationAgent/Mistral] attempt {attempt} invalid JSON: {e}")

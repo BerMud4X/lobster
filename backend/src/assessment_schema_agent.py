@@ -30,6 +30,7 @@ from dotenv import load_dotenv
 import pandas as pd
 from logger import logger
 import audit_logger
+import prompt_cache
 
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
@@ -189,9 +190,16 @@ def _call_ai(prompt: str, model: str, provider: str) -> dict:
                     model=model, max_tokens=4096,
                     messages=[{"role": "user", "content": prompt}]
                 )
-                raw = response.content[0].text.strip()
+                def _fetch():
+                    r = client.messages.create(
+                        model=model, max_tokens=4096,
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    return r.content[0].text.strip()
+                raw, cached = prompt_cache.get_or_fetch("Anthropic", model, prompt, _fetch)
                 parsed = _validate_extraction(_parse_response(raw))
-                audit_logger.log_call("schema_detector", "Anthropic", model, prompt, raw, parsed=parsed)
+                audit_logger.log_call("schema_detector", "Anthropic", model, prompt, raw, parsed=parsed,
+                                      metadata={"cache_hit": cached})
                 return parsed
             except json.JSONDecodeError as e:
                 logger.warning(f"[SchemaAgent/Anthropic] attempt {attempt} invalid JSON: {e}")
@@ -203,13 +211,13 @@ def _call_ai(prompt: str, model: str, provider: str) -> dict:
         client = Mistral(api_key=api_key)
         for attempt in range(1, 3):
             try:
-                response = client.chat.complete(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                raw = response.choices[0].message.content.strip()
+                def _fetch():
+                    r = client.chat.complete(model=model, messages=[{"role": "user", "content": prompt}])
+                    return r.choices[0].message.content.strip()
+                raw, cached = prompt_cache.get_or_fetch("Mistral", model, prompt, _fetch)
                 parsed = _validate_extraction(_parse_response(raw))
-                audit_logger.log_call("schema_detector", "Mistral", model, prompt, raw, parsed=parsed)
+                audit_logger.log_call("schema_detector", "Mistral", model, prompt, raw, parsed=parsed,
+                                      metadata={"cache_hit": cached})
                 return parsed
             except json.JSONDecodeError as e:
                 logger.warning(f"[SchemaAgent/Mistral] attempt {attempt} invalid JSON: {e}")

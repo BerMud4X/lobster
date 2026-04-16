@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from logger import logger
 from reference_loader import load_exercises, get_muscles_latin_list, get_objectives_list, validate_code_base, validate_objective_code, load_protocol
 import audit_logger
+import prompt_cache
 
 # Load API keys from .env
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
@@ -188,14 +189,19 @@ def _call_mistral(model: str, prompt: str, muscles_ref: list[str]) -> list[dict]
     for attempt in range(1, max_retries + 1):
         try:
             logger.info(f"[Mistral/{model}] attempt {attempt}: {prompt[:80]}...")
-            response = client.chat.complete(
-                model=model,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            raw = response.choices[0].message.content.strip()
-            logger.info(f"[Mistral/{model}] raw response: {raw[:200]}")
+
+            def _fetch():
+                response = client.chat.complete(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return response.choices[0].message.content.strip()
+
+            raw, cached = prompt_cache.get_or_fetch("Mistral", model, prompt, _fetch)
+            logger.info(f"[Mistral/{model}] raw response ({'cache' if cached else 'api'}): {raw[:200]}")
             exercises = _parse_response(raw, muscles_ref)
-            audit_logger.log_call("extractor", "Mistral", model, prompt, raw, parsed=exercises)
+            audit_logger.log_call("extractor", "Mistral", model, prompt, raw, parsed=exercises,
+                                  metadata={"cache_hit": cached})
             logger.info(f"[Mistral/{model}] extracted {len(exercises)} exercises.")
             return exercises
         except json.JSONDecodeError as e:
@@ -222,15 +228,20 @@ def _call_anthropic(model: str, prompt: str, muscles_ref: list[str]) -> list[dic
     for attempt in range(1, max_retries + 1):
         try:
             logger.info(f"[Anthropic/{model}] attempt {attempt}: {prompt[:80]}...")
-            response = client.messages.create(
-                model=model,
-                max_tokens=2048,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            raw = response.content[0].text.strip()
-            logger.info(f"[Anthropic/{model}] raw response: {raw[:200]}")
+
+            def _fetch():
+                response = client.messages.create(
+                    model=model,
+                    max_tokens=2048,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return response.content[0].text.strip()
+
+            raw, cached = prompt_cache.get_or_fetch("Anthropic", model, prompt, _fetch)
+            logger.info(f"[Anthropic/{model}] raw response ({'cache' if cached else 'api'}): {raw[:200]}")
             exercises = _parse_response(raw, muscles_ref)
-            audit_logger.log_call("extractor", "Anthropic", model, prompt, raw, parsed=exercises)
+            audit_logger.log_call("extractor", "Anthropic", model, prompt, raw, parsed=exercises,
+                                  metadata={"cache_hit": cached})
             logger.info(f"[Anthropic/{model}] extracted {len(exercises)} exercises.")
             return exercises
         except json.JSONDecodeError as e:
