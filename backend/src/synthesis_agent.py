@@ -4,6 +4,7 @@ from collections import Counter
 from logger import logger
 from reference_loader import get_objectives_list
 import audit_logger
+import prompt_cache
 
 
 def _build_synthesis_prompt(patient_id: str, session: str, exercises: list[dict], objectives_ref: list[dict], protocol: dict = None) -> str:
@@ -89,14 +90,15 @@ def _call_mistral_synthesis(model: str, prompt: str) -> dict:
     for attempt in range(1, 3):
         try:
             logger.info(f"[Synthesis/Mistral/{model}] attempt {attempt}")
-            response = client.chat.complete(
-                model=model,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            raw = response.choices[0].message.content.strip()
-            logger.info(f"[Synthesis/Mistral] raw: {raw[:200]}")
+
+            def _fetch():
+                r = client.chat.complete(model=model, messages=[{"role": "user", "content": prompt}])
+                return r.choices[0].message.content.strip()
+            raw, cached = prompt_cache.get_or_fetch("Mistral", model, prompt, _fetch)
+            logger.info(f"[Synthesis/Mistral] raw ({'cache' if cached else 'api'}): {raw[:200]}")
             parsed = _parse_synthesis_response(raw)
-            audit_logger.log_call("synthesis", "Mistral", model, prompt, raw, parsed=parsed)
+            audit_logger.log_call("synthesis", "Mistral", model, prompt, raw, parsed=parsed,
+                                  metadata={"cache_hit": cached})
             return parsed
         except json.JSONDecodeError as e:
             logger.warning(f"[Synthesis/Mistral] attempt {attempt} invalid JSON: {e}")
@@ -121,15 +123,18 @@ def _call_anthropic_synthesis(model: str, prompt: str) -> dict:
     for attempt in range(1, 3):
         try:
             logger.info(f"[Synthesis/Anthropic/{model}] attempt {attempt}")
-            response = client.messages.create(
-                model=model,
-                max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            raw = response.content[0].text.strip()
-            logger.info(f"[Synthesis/Anthropic] raw: {raw[:200]}")
+
+            def _fetch():
+                r = client.messages.create(
+                    model=model, max_tokens=1024,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return r.content[0].text.strip()
+            raw, cached = prompt_cache.get_or_fetch("Anthropic", model, prompt, _fetch)
+            logger.info(f"[Synthesis/Anthropic] raw ({'cache' if cached else 'api'}): {raw[:200]}")
             parsed = _parse_synthesis_response(raw)
-            audit_logger.log_call("synthesis", "Anthropic", model, prompt, raw, parsed=parsed)
+            audit_logger.log_call("synthesis", "Anthropic", model, prompt, raw, parsed=parsed,
+                                  metadata={"cache_hit": cached})
             return parsed
         except json.JSONDecodeError as e:
             logger.warning(f"[Synthesis/Anthropic] attempt {attempt} invalid JSON: {e}")

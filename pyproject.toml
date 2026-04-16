@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "lobster"
-version = "0.4.1a1"
+version = "0.4.2a1"
 description = "Data Transforming Made Easy — an open source ETL tool for researchers"
 readme = "README.md"
 license = { file = "LICENSE" }

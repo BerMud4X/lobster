@@ -1,10 +1,12 @@
 import json
 from datetime import datetime
 from pathlib import Path
+from threading import Lock
 from logger import logger
 
 _audit_path: Path | None = None
 _session_id: str | None = None
+_write_lock = Lock()  # serializes concurrent writes to the JSONL file
 
 
 def init_audit(output_dir: str = "output") -> Path:
@@ -49,8 +51,9 @@ def log_call(
         "metadata": metadata or {},
     }
     try:
-        with open(_audit_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        with _write_lock:
+            with open(_audit_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     except Exception as e:
         logger.warning(f"[Audit] could not write entry: {e}")
 

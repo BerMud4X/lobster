@@ -7,10 +7,10 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT"/></a>
-  <img src="https://img.shields.io/badge/version-0.4.1--alpha-orange.svg" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-0.4.2--alpha-orange.svg" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.12%2B-blue.svg" alt="Python 3.12+"/>
   <img src="https://img.shields.io/badge/status-alpha-red.svg" alt="Status"/>
-  <img src="https://img.shields.io/badge/tests-249%20passed-brightgreen.svg" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-276%20passed-brightgreen.svg" alt="Tests"/>
   <img src="https://img.shields.io/badge/docker-ready-blue.svg" alt="Docker"/>
 </p>
 
@@ -157,7 +157,7 @@ The clinical report mode auto-detects the language of the input notes and writes
 ### Infrastructure
 
 - Structured logging to `logs/lobster.log`
-- 249 unit tests (pytest)
+- 276 unit tests (pytest, with CI on GitHub Actions)
 - Docker ready — includes MongoDB and PostgreSQL services
 
 ---
@@ -193,7 +193,8 @@ LOBSTER/
     │   ├── language_detector.py       # Auto language detection (clinical mode)
     │   ├── data_validator.py          # Pre-flight data validation (no AI)
     │   ├── cost_estimator.py          # Pre-flight API cost estimation
-    │   ├── audit_logger.py            # JSONL audit trail of all AI calls
+    │   ├── audit_logger.py            # JSONL audit trail of all AI calls (thread-safe)
+    │   ├── prompt_cache.py            # Content-addressed response cache (TTL 30d)
     │   ├── assessment_loader.py       # Loads heterogeneous assessment Excel files
     │   ├── assessment_schema_agent.py # Agent 6 — schema detection (AI)
     │   ├── statistical_analyzer.py    # Deterministic stats engine (scipy/statsmodels)
@@ -222,6 +223,9 @@ LOBSTER/
         ├── test_data_validator.py
         ├── test_cost_estimator.py
         ├── test_audit_logger.py
+        ├── test_prompt_cache.py
+        ├── test_parallelism.py
+        ├── test_integration_orchestrator.py
         ├── test_assessment_loader.py
         ├── test_statistical_analyzer.py
         ├── test_stats_figures.py
@@ -396,6 +400,16 @@ python -m pytest -v
 - [x] Audit trail / provenance log (JSONL) — every AI call recorded for reproducibility
 - [x] **Quantitative assessments (Phase 1)** — Agent 6 schema detector + deterministic stats engine + Agent 7 stats writer + auto figures (boxplot, change, forest plot)
 - [x] 249 unit tests
+
+### v0.4.2-alpha ✅
+
+- [x] **Prompt/response cache** — content-addressed (`output/cache/*.json`), 30-day TTL, 16-char SHA256 keys. Re-running on the same input file is free (0 API calls on cache hits). Disable via `LOBSTER_CACHE=false`
+- [x] **Parallel extract+review** — orchestrator uses `ThreadPoolExecutor` (default 5 workers, tunable via `LOBSTER_WORKERS`). 10 rows × 0.05s latency goes from 0.5s sequential to ~0.15s
+- [x] **Per-session synthesis** — Agent 3 now called once per unique session (was once per row), saving N−1 API calls on multi-row-per-session inputs
+- [x] **Thread-safe audit logger** — `Lock` around JSONL writes so parallel agent calls don't corrupt the log
+- [x] **Integration test** — full orchestrator pipeline tested end-to-end with all 3 agents mocked (guards against refactor regressions)
+- [x] **GitHub Actions CI** — pytest runs on every push & PR to `main`/`develop`
+- [x] 276 unit tests (+27)
 
 ### v0.4.1-alpha ✅
 
